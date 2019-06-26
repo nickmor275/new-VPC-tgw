@@ -28,7 +28,7 @@ TGWCIDR4="10.40.0.0/16"
 TGWCIDR5="10.50.0.0/16"
 TGWCIDR6="10.60.0.0/16"
 TGWCIDR7="192.168.128.0/16"
-MyTransitGateway="tgw-00d4d654b468abf85"
+MyTransitGateway="tgw-00d***************"
 
 
 # Package
