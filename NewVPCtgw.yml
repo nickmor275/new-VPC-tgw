@@ -1,0 +1,240 @@
+# Any code, applications, scripts, templates, proofs of concept, documentation
+# and other items provided by AWS under this SOW are "AWS Content,"" as defined
+# in the Agreement, and are provided for illustration purposes only. All such
+# AWS Content is provided solely at the option of AWS, and is subject to the
+# terms of the Addendum and the Agreement. Customer is solely responsible for
+# using, deploying, testing, and supporting any code and applications provided
+# by AWS under this SOW.
+#
+# (c) 2019 Amazon Web Services
+
+AWSTemplateFormatVersion: 2010-09-09
+Transform: "AWS::Serverless-2016-10-31"
+Description: EC2 route table with TGW route
+
+Parameters:
+
+  VPCCIDR:
+    Description: VPC CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  SubnetCIDR:
+    Description: Subnet CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR1:
+    Description: First Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR2:
+    Description: Second Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR3:
+    Description: Third Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR4:
+    Description: fourth Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR5:
+    Description: Fifth Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR6:
+    Description: Sixth Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  TGWCIDR7:
+    Description: Seventh Transit gateway managed CIDR Block
+    Type: String
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+
+  MyTransitGateway:
+    Description: Existing Transit Gateway 
+    Type: String
+    
+
+
+
+Resources: 
+
+
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  MySubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref SubnetCIDR
+      Tags:
+        - Key: Name
+          Value: MySubnet
+
+  MyTransitGatewayAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - !Ref MySubnet
+      TransitGatewayId: !Ref MyTransitGateway
+      VpcId: !Ref MyVPC
+
+  MyRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+          - Key: Name
+            Value: MyRouteTable
+
+  SubnetRouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MySubnet
+      RouteTableId: !Ref MyRouteTable
+
+  CustomResourceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'lambda.amazonaws.com'
+          Action:
+          - 'sts:AssumeRole'
+      Path: '/'
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+      - PolicyName: iam
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateRoute
+              - ec2:DeleteRoute
+            Resource: '*'
+  
+  TGWRoute:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: lambda_function.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt CustomResourceRole.Arn
+      Runtime: python3.7
+      Timeout: 60
+      Environment:
+        Variables:
+          DEBUG_MODE: 'true'
+
+  RouteToTGW1:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR1
+      RouteTableId: !Ref MyRouteTable
+
+  RouteToTGW2:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR2
+      RouteTableId: !Ref MyRouteTable
+
+  RouteToTGW3:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR3
+      RouteTableId: !Ref MyRouteTable
+    
+  RouteToTGW4:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR4
+      RouteTableId: !Ref MyRouteTable
+ 
+  RouteToTGW5:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR5
+      RouteTableId: !Ref MyRouteTable
+ 
+  RouteToTGW6:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR6
+      RouteTableId: !Ref MyRouteTable
+
+  RouteToTGW7:
+    Type: Custom::EC2Route
+    DependsOn: MyTransitGatewayAttachment
+    Properties:
+      ServiceToken: !GetAtt 'TGWRoute.Arn'
+      TransitGatewayId: !Ref MyTransitGateway
+      DestinationCidrBlock: !Ref TGWCIDR7
+      RouteTableId: !Ref MyRouteTable
+ 
+
+Outputs:
+
+  MyTransitGatewayId: 
+    Description: 'My TransitGateway id'
+    Value: !Ref MyTransitGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-tgw"
+
+  MyVpcId:
+    Description: 'My VPC id'
+    Value: !Ref MyVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-vpc"
+
+  MySubnetId:
+    Description: 'My subnet id'
+    Value: !Ref MySubnet
+    Export:
+      Name: !Sub '${AWS::StackName}-sn'
+
+  MyRouteTableId:
+    Description: 'My route table id'
+    Value: !Ref MySubnet
+    Export:
+      Name: !Sub '${AWS::StackName}-rt'
